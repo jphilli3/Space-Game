@@ -10,6 +10,6 @@ trait ShootsBullets {
    * 
    *  @return Bullet - newly created Bullet object that is fired
    */
-  def shoot():Bullet
+  def shoot():Bullet {}
   
 }

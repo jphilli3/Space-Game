@@ -11,12 +11,19 @@ import cs2.util.Vec2
  *  @param bulletPic the image of the bullets fired by this enemy
  */
 class Enemy(pic:Image, initPos:Vec2, private val bulletPic:Image) 
-                  extends Sprite(pic, initPos) with ShootsBullets {
+                 extends Sprite(pic, initPos) with ShootsBullets {
 
   /** creates a new Bullet instance beginning from this Enemy, with an appropriate velocity
    * 
    *  @return Bullet - the newly created Bullet object that was fired
    */
-  def shoot():Bullet = { }
- 
+   def shoot():Bullet = { 
+   
+       val pic = new Image("file:CS2GreenLaser.png")
+       val vel = new Vec2(0,5)
+       var position = new Vec2(pos.x+20, pos.y)
+    
+       new Bullet(pic,position,vel)
+
+   }
 }
