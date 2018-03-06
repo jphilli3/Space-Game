@@ -22,10 +22,13 @@ class Player(avatar:Image, initPos:Vec2, private val bulletPic:Image)
    *  
    *  @return none/Unit
    */
+ 
+  
+  
      def moveLeft() {
           
-        var newPos = new Vec2(-10, 0)
-             move(newPos)
+        var newPos = new Vec2(-8, 0)
+            move(newPos)
           
      }
   
@@ -35,10 +38,35 @@ class Player(avatar:Image, initPos:Vec2, private val bulletPic:Image)
    */
      def moveRight() {
      
-         var newPos = new Vec2(10, 0)
+         var newPos = new Vec2(8, 0)
              move(newPos)
                   
      }
+     
+  /** moves the player sprite one "step" up (see note above)
+   * 
+   *  @return none/Unit
+   */
+     
+     def moveUp() {
+     
+         var newPos = new Vec2(0, -8)
+             move(newPos)
+                  
+     }
+     
+   /** moves the player sprite one "step" down (see note above)
+   * 
+   *  @return none/Unit
+   */  
+     
+     def moveDown() {
+     
+         var newPos = new Vec2(0, 8)
+             move(newPos)
+                  
+     }
+     
   
   /** creates a new Bullet instance beginning from the player, with an 
    *  appropriate velocity
@@ -48,7 +76,7 @@ class Player(avatar:Image, initPos:Vec2, private val bulletPic:Image)
    def shoot():Bullet = { 
     
      val pic = new Image("file:CS2RedLaser.png")
-     val vel = new Vec2(0,-5)
+     val vel = new Vec2(0,-0.5)
      val initPos = new Vec2(pos.x+18,pos.y)
     
      new Bullet(pic,initPos.clone(),vel)

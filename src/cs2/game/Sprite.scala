@@ -10,13 +10,17 @@ import scalafx.scene.canvas.GraphicsContext
  *  @param img the image used to display this sprite
  *  @param pos the initial position of the '''center''' of the sprite in 2D space
  */
-abstract class Sprite (protected val img:Image, protected var pos:Vec2) {
+abstract class Sprite (protected val img:Image, var pos:Vec2) {
 
   /** moves the sprite a relative amount based on a specified vector
    *  
    *  @param direction - an offset that the position of the sprite should be moved by
    *  @return none/Unit
    */
+  
+  var intersection: Boolean = false
+  
+ 
   def move (direction:Vec2) { 
     pos += direction
   }
@@ -38,4 +42,13 @@ abstract class Sprite (protected val img:Image, protected var pos:Vec2) {
   def display (g:GraphicsContext,w:Double,h:Double) { 
    g.drawImage(img, pos.x, pos.y, w, h)
   }
+  
+  def intersects (widthA:Int, heightA: Int, widthB:Int, heightB:Int, location: Vec2) {
+    if (!((this.pos.x+widthA < location.x) || (this.pos.x > location.x+widthB)) && !((this.pos.y+heightA < location.y) || (this.pos.y > location.y+heightB))) {
+       intersection = true
+    } else {
+      intersection = false
+    }
+  }
+  
 }
