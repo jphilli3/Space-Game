@@ -10,7 +10,7 @@ import scalafx.scene.canvas.GraphicsContext
  *  @param img the image used to display this sprite
  *  @param pos the initial position of the '''center''' of the sprite in 2D space
  */
-abstract class Sprite (protected val img:Image, var pos:Vec2) {
+abstract class Sprite (var img:Image, var pos:Vec2) {
 
   /** moves the sprite a relative amount based on a specified vector
    *  

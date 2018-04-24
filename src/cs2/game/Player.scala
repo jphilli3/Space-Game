@@ -6,6 +6,10 @@ import scalafx.scene.input.KeyEvent
 import scalafx.scene.input.KeyCode
 import cs2.util.Vec2
 
+
+object Player {
+  val redLaser = new Image("file:CS2RedLaser.png")
+}
 /** The player representation for a simple game based on sprites. Handles all 
  *  information regarding the player's positions, movements, and abilities.
  *  
@@ -22,8 +26,6 @@ class Player(avatar:Image, initPos:Vec2, private val bulletPic:Image)
    *  
    *  @return none/Unit
    */
- 
-  
   
      def moveLeft() {
           
@@ -75,11 +77,20 @@ class Player(avatar:Image, initPos:Vec2, private val bulletPic:Image)
    */
    def shoot():Bullet = { 
     
-     val pic = new Image("file:CS2RedLaser.png")
+     val pic = Player.redLaser
      val vel = new Vec2(0,-0.5)
      val initPos = new Vec2(pos.x+18,pos.y)
     
      new Bullet(pic,initPos.clone(),vel)
     
-   }           
+   }         
+   
+   override def clone(): Player = {
+     
+     var pl = new Player(img,pos.clone(),Player.redLaser)
+	   pl.pos = pos.clone()
+	   pl
+     
+   }
+   
 }

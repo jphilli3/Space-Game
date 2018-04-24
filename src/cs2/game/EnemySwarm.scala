@@ -15,6 +15,14 @@ import scalafx.scene.canvas.GraphicsContext
  *  @param nRows - number of rows of enemy objects
  *  @param nCols - number of columns of enemy objects
  */
+
+object EnemySwarm {
+
+  val pic = new Image("file:CS2Alien.png")
+  val bPic = new Image("file:CS2GreenLaser.png")
+
+}
+
 class EnemySwarm(private val nRows: Int, private val nCols: Int) extends ShootsBullets {
 
   /**
@@ -29,11 +37,9 @@ class EnemySwarm(private val nRows: Int, private val nCols: Int) extends ShootsB
   for (x <- 0 until nRows) {
     for (y <- 0 until nCols) {
 
-      val pic = new Image("file:CS2Alien.png")
-      val bPic = new Image("file:CS2GreenLaser.png")
       val initPos = new Vec2(x * 90 + 250, y * 50 + 50)
 
-      grid(x)(y) = new Enemy(pic, initPos, bPic)
+      grid(x)(y) = new Enemy(EnemySwarm.pic, initPos, EnemySwarm.bPic)
 
     }
   }
@@ -73,7 +79,6 @@ class EnemySwarm(private val nRows: Int, private val nCols: Int) extends ShootsB
       }
     }
   }
-
   /**
    * overridden method of ShootsBullets. Creates a single, new bullet instance
    *  originating from a random enemy in the swarm. (Not a bullet from every
@@ -90,4 +95,19 @@ class EnemySwarm(private val nRows: Int, private val nCols: Int) extends ShootsB
     enemy.shoot()
 
   }
+
+  override def clone(): EnemySwarm = {
+
+    var swarm = new EnemySwarm(nRows, nCols)
+    for (x <- 0 until nRows) {
+      for (y <- 0 until nCols) {
+
+        swarm.grid(x)(y) = grid(x)(y).clone()
+
+      }
+    }
+    swarm
+
+  }
+
 }

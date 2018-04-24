@@ -18,9 +18,20 @@ class Bullet(pic:Image, initPos:Vec2, private var vel:Vec2) extends Sprite(pic, 
    *  @return none/Unit
    */
   
+  var velo = vel
+  
 	def timeStep() {
 	  
 	  move(vel)
 	  
 	}
+	
+	override def clone(): Bullet = {
+	  
+	  var bul = new Bullet(img,pos.clone(),velo.clone())
+	  bul.vel = velo.clone()
+	  bul
+	  
+	}
+	
 }
