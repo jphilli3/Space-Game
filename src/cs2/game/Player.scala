@@ -9,6 +9,7 @@ import cs2.util.Vec2
 
 object Player {
   val redLaser = new Image("file:CS2RedLaser.png")
+  val orangeLaser = new Image("file:CSOrangeLaser.png")
 }
 /** The player representation for a simple game based on sprites. Handles all 
  *  information regarding the player's positions, movements, and abilities.
@@ -83,7 +84,17 @@ class Player(avatar:Image, initPos:Vec2, private val bulletPic:Image)
     
      new Bullet(pic,initPos.clone(),vel)
     
-   }         
+   }   
+   
+   def shootBFL():Bullet = { 
+    
+     val pic = Player.orangeLaser
+     val vel = new Vec2(0,0)
+     val initPos = new Vec2(pos.x+8,pos.y-400)
+    
+     new Bullet(pic,initPos.clone(),vel)
+    
+   }      
    
    override def clone(): Player = {
      

@@ -49,7 +49,6 @@ class Explosion(pic: Image, initPos: Vec2, explode: Boolean)
     img = Explosion.explosionImage3
     } else if (step > 20 && step <= 25) {
     img = Explosion.explosionImage4
-    println("done")
     exploding = false
     }
     }

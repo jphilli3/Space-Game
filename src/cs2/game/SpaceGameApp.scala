@@ -16,6 +16,9 @@ import scalafx.scene.layout.BorderPane
 import scalafx.geometry.Insets
 import scalafx.scene.shape.Rectangle
 import cs2.util.Vec2
+import javafx.scene.media.Media
+import javafx.scene.media.MediaPlayer
+import java.io.File
 
 /**
  * main object that initiates the execution of the game, including construction
@@ -48,10 +51,19 @@ object Images {
   val Tesla3H = new Image("file:CS2Tesla3H.png")
   val Tesla3HR = new Image("file:CS2Tesla3HR.png")
   val Tesla3HL = new Image("file:CS2Tesla3HL.png")
-  
+
   val BossH1 = new Image("file:BossEnemyH1.png")
   val BossH2 = new Image("file:BossEnemyH2.png")
   val BossH3 = new Image("file:BossEnemyH3.png")
+
+  val batteryFull = new Image("file:CSFullCharge.png")
+  val battery90 = new Image("file:CS90Charge.png")
+  val battery80 = new Image("file:CS80Charge.png")
+  val battery65 = new Image("file:CS65Charge.png")
+  val battery50 = new Image("file:CS50Charge.png")
+  val battery35 = new Image("file:CS35Charge.png")
+  val battery20 = new Image("file:CS20Charge.png")
+  val batteryEmpty = new Image("file:CS0Charge.png")
 
 }
 
@@ -74,24 +86,35 @@ object SpaceGameApp extends JFXApp {
 
       val bossInitPos = new Vec2(center, -200)
       val pInitPos = new Vec2(center, cHeight - 165)
+      val p1InitPos = new Vec2(center + 50, cHeight - 165)
+      val p2InitPos = new Vec2(center - 50, cHeight - 165)
 
       var constellation = new Constellation(10, 10)
 
       var enemySwarm = new EnemySwarm(6, 4)
       var player = new Player(Images.pPic, pInitPos, Images.bPic)
+      var playerOne = new Player(Images.pPic, p1InitPos, Images.bPic)
+      var playerTwo = new Player(Images.pPic, p2InitPos, Images.bPic)
       var bossEnemy = new Boss(Images.bossPic, bossInitPos, Images.eBPic)
+      var battery = new Battery(Images.batteryEmpty, new Vec2(50, 700))
 
       val playerW = 40
       val playerH = 65
 
+      val player2W = 30
+      val player2H = 55
+
       val enemyW = 40
       val enemyH = 40
-      
+
       val bossW = 80
       val bossH = 80
 
       val bulletW = 4
       val bulletH = 10
+
+      val laserW = 22
+      val laserH = 400
 
       val starW = 2
       val starH = 2
@@ -101,16 +124,32 @@ object SpaceGameApp extends JFXApp {
 
       var pBullets = collection.mutable.ListBuffer.empty[Bullet]
       var eBullets = collection.mutable.ListBuffer.empty[Bullet]
+      var BFLBullets = collection.mutable.ListBuffer.empty[Bullet]
+      var powerUps = collection.mutable.ListBuffer.empty[PowerUp]
       var explosions = collection.mutable.ListBuffer.empty[Explosion]
 
       var startGame = true
       var playerLives = 3
+      var player1Lives = 3
+      var player2Lives = 3
       var bossLives = 3
       var score = 0
-      var swarmsKilled = 0
       var running = true
       var endCount = 0
-      var showBoss = false 
+      var showBoss = false
+      var enemiesInGrid = 24
+
+      var energy = 0
+      var counter = 0
+      var slow = false
+      var speedCounter = 0
+
+      var coop = false
+      var p1ShootCount = 0
+      var p2ShootCount = 0
+
+      var existBFL = 0
+      var existBFL2 = 0
 
       var explosionCounter = 0
 
@@ -126,7 +165,8 @@ object SpaceGameApp extends JFXApp {
 
         if (keyEvents("P") == true) {
 
-          timer.start
+          coop = false
+          timer.start()
 
         }
 
@@ -136,21 +176,76 @@ object SpaceGameApp extends JFXApp {
 
         }
 
+        if (keyEvents("C") == true) {
+
+          coop = true
+          timer.start()
+
+        }
+
         if (keyEvents("SPACE") == true) {
 
-          shootCount += 1
+          if (coop == true) {
 
-          if (shootCount <= 1 && playerLives >= 0) {
+            p1ShootCount += 1
 
-            pBullets += player.shoot()
-            if (showBoss == true) {
-            eBullets += bossEnemy.shoot()
+            if (p1ShootCount <= 1 && player1Lives >= 0) {
+
+              playLaserAudio()
+
+              pBullets += playerOne.shoot()
+              if (showBoss == true) {
+
+                playAlienLaserAudio()
+                eBullets += bossEnemy.shoot()
+              }
+            }
+          } else {
+
+            shootCount += 1
+
+            if (shootCount <= 1 && playerLives >= 0) {
+
+              playLaserAudio()
+
+              pBullets += player.shoot()
+              if (showBoss == true) {
+                eBullets += bossEnemy.shoot()
+              }
+            }
+          }
+        }
+
+        if (keyEvents("X") == true) {
+
+          if (coop == true) {
+
+            p2ShootCount += 1
+
+            if (p2ShootCount <= 1 && player2Lives >= 0) {
+
+              playLaserAudio()
+
+              pBullets += playerTwo.shoot()
+
             }
           }
         }
       }
 
       canvas.onKeyReleased = (event: KeyEvent) => {
+
+        if (keyEvents("B") == true || keyEvents("Z") == true) {
+
+          for (laser <- BFLBullets) {
+
+            playLaserAudio()
+
+            BFLBullets -= laser
+
+          }
+
+        }
 
         keyEvents -= event.code.toString()
 
@@ -164,22 +259,243 @@ object SpaceGameApp extends JFXApp {
 
       val timer = AnimationTimer(t => {
 
-        //Save Game States
-
         if (keyEvents("R") == true) {
 
-          restorePreviousState()
+          if (gameStates.length != 0) {
+
+            restorePreviousState()
+
+          } else {
+
+            println("No more previous states")
+
+          }
+
+          //Save Game States
 
         } else {
 
-          if ((score > 0) && (score % 24 == 0)) {
-            
-            showBoss = true
-            bossEnemy.moveTo(new Vec2(center, cHeight-player.pos.y))
-            
-            
+          counter += 1
+
+          //Energy Battery 100
+          if (energy == 240) {
+
+            battery.img = Images.batteryFull
+
+          } else if (energy < 240 && energy > 200) {
+
+            battery.img = Images.battery90
+
+          } else if (energy < 200 && energy > 160) {
+
+            battery.img = Images.battery80
+
+          } else if (energy < 160 && energy > 120) {
+
+            battery.img = Images.battery65
+
+          } else if (energy < 120 && energy > 80) {
+
+            battery.img = Images.battery50
+
+          } else if (energy < 80 && energy > 40) {
+
+            battery.img = Images.battery35
+
+          } else if (energy < 40 && energy > 0) {
+
+            battery.img = Images.battery20
+
+          } else if (energy == 0) {
+
+            battery.img = Images.batteryEmpty
+
           }
 
+          //Drop Power Up
+          if (counter % 317 == 0) {
+
+            var powerUp = enemySwarm.dropPower()
+            powerUps += powerUp
+
+          }
+
+          for (power <- powerUps) {
+
+            power.timeStep()
+
+            if (coop == true) {
+
+              playerOne.intersectsPower(playerW, playerH, 30, 30, power.pos)
+              playerTwo.intersectsPower(player2W, player2H, 30, 30, power.pos)
+
+              if (playerOne.powerIntersection == true && power.kind == 0) {
+                //Energy
+                playPowerUpAudio()
+                energy += 50
+                powerUps -= power
+
+              } else if (playerOne.powerIntersection == true && power.kind == 1) {
+                //Life
+                playPowerUpAudio()
+                player1Lives += 1
+                powerUps -= power
+
+              } else if (playerOne.powerIntersection == true && power.kind == 2) {
+                //Slow
+                playPowerUpAudio()
+                slow = true
+                speedCounter += 200
+                powerUps -= power
+
+              }
+
+              if (playerTwo.powerIntersection == true && power.kind == 0) {
+                //Energy
+                playPowerUpAudio()
+                energy += 50
+                powerUps -= power
+
+              } else if (playerTwo.powerIntersection == true && power.kind == 1) {
+                //Life
+                playPowerUpAudio()
+                player2Lives += 1
+                powerUps -= power
+
+              } else if (playerTwo.powerIntersection == true && power.kind == 2) {
+                //Slow
+                playPowerUpAudio()
+                slow = true
+                speedCounter += 500
+                powerUps -= power
+
+              }
+
+            } else {
+
+              player.intersectsPower(playerW, playerW, 30, 30, power.pos)
+
+              if (player.powerIntersection == true && power.kind == 0) {
+                //Energy
+                playPowerUpAudio()
+                energy += 50
+                powerUps -= power
+
+              } else if (player.powerIntersection == true && power.kind == 1) {
+                //Life
+                playPowerUpAudio()
+                playerLives += 1
+                powerUps -= power
+
+              } else if (player.powerIntersection == true && power.kind == 2) {
+                //Slow
+                playPowerUpAudio()
+                slow = true
+                speedCounter += 500
+                powerUps -= power
+
+              }
+
+            }
+
+          }
+
+          //BIG LASER
+          if (keyEvents("B") == true) {
+            if (coop == true) {
+
+              val laserBFL = playerOne.shootBFL()
+
+              if (energy > 0) {
+
+                energy -= 4
+
+                if (BFLBullets.length == 0) {
+
+                  BFLBullets += laserBFL
+                  playBFLAudio()
+
+                  if (energy == 0) {
+
+                    println("Remove")
+
+                    for (laser <- BFLBullets) {
+
+                      BFLBullets -= laser
+
+                    }
+
+                  }
+                }
+              }
+            } else {
+
+              val laserBFL = player.shootBFL()
+
+              if (energy >= 0) {
+
+                energy -= 4
+
+                if (BFLBullets.length == 0) {
+
+                  BFLBullets += laserBFL
+                  playBFLAudio()
+
+                }
+              }
+
+              if (energy < 0) {
+
+                for (laser <- BFLBullets) {
+
+                  BFLBullets -= laser
+
+                }
+
+              }
+            }
+          }
+
+          //BIG LASER 2
+          if (keyEvents("Z") == true) {
+            if (coop == true) {
+
+              val laserBFL2 = playerTwo.shootBFL()
+
+              if (energy >= 0) {
+
+                energy -= 4
+
+                if (BFLBullets.length == 0) {
+
+                }
+
+                playBFLAudio()
+                BFLBullets += laserBFL2
+
+                if (energy == 0) {
+
+                  println("Remove")
+
+                  for (laser <- BFLBullets) {
+
+                    BFLBullets -= laser
+
+                  }
+                }
+              }
+            } else {
+
+            }
+
+          }
+
+          if ((score > 0) && (enemiesInGrid == 0)) {
+
+            showBoss = true
+            bossEnemy.moveTo(new Vec2(center, cHeight - player.pos.y))
+
+          }
 
           for (x <- 0 until 10) {
             for (y <- 0 until 10) {
@@ -194,236 +510,519 @@ object SpaceGameApp extends JFXApp {
             }
           }
 
-          if (playerLives == 2) {
+          if (coop == true) {
 
-            player.img = Images.Tesla1H
+            if (player1Lives == 2) {
 
+              playerOne.img = Images.Tesla1H
+
+            }
+
+            if (player1Lives == 1) {
+
+              playerOne.img = Images.Tesla2H
+
+            }
+
+            if (player1Lives == 0) {
+
+              playerOne.img = Images.Tesla3H
+
+            }
+
+            if (player2Lives == 2) {
+
+              playerTwo.img = Images.Tesla1H
+
+            }
+
+            if (player2Lives == 1) {
+
+              playerTwo.img = Images.Tesla2H
+
+            }
+
+            if (player2Lives == 0) {
+
+              playerTwo.img = Images.Tesla3H
+
+            }
+
+          } else {
+
+            if (playerLives == 2) {
+
+              player.img = Images.Tesla1H
+
+            }
+
+            if (playerLives == 1) {
+
+              player.img = Images.Tesla2H
+
+            }
+
+            if (playerLives == 0) {
+
+              player.img = Images.Tesla3H
+
+            }
           }
 
-          if (playerLives == 1) {
+          if (keyEvents("LEFT") == true && playerLives >= 0 && player1Lives >= 0) {
+            if (coop == true) {
 
-            player.img = Images.Tesla2H
+              if (playerOne.pos.x >= 10) {
+                playerOne.moveLeft()
+                playerOne.img = Images.pLPic
+                if (player1Lives == 2) {
 
-          }
+                  playerOne.img = Images.Tesla1HL
 
-          if (playerLives == 0) {
+                }
 
-            player.img = Images.Tesla3H
+                if (player1Lives == 1) {
 
-          }
+                  playerOne.img = Images.Tesla2HL
 
-          if (keyEvents("LEFT") == true && playerLives >= 0) {
-            if (player.pos.x >= 10) {
-              player.moveLeft()
-              player.img = Images.pLPic
-              if (playerLives == 2) {
+                }
 
-                player.img = Images.Tesla1HL
+                if (player1Lives == 0) {
+
+                  playerOne.img = Images.Tesla3HL
+
+                }
+
+                bossEnemy.move(new Vec2(6, 0))
 
               }
 
-              if (playerLives == 1) {
+            } else {
 
-                player.img = Images.Tesla2HL
+              if (player.pos.x >= 10) {
+                player.moveLeft()
+                player.img = Images.pLPic
+                if (playerLives == 2) {
+
+                  player.img = Images.Tesla1HL
+
+                }
+
+                if (playerLives == 1) {
+
+                  player.img = Images.Tesla2HL
+
+                }
+
+                if (playerLives == 0) {
+
+                  player.img = Images.Tesla3HL
+
+                }
+
+                bossEnemy.move(new Vec2(6, 0))
 
               }
-
-              if (playerLives == 0) {
-
-                player.img = Images.Tesla3HL
-
-              }
-
-              bossEnemy.move(new Vec2(6, 0))
-
             }
           }
 
           if (keyEvents("RIGHT") == true) {
-            if (player.pos.x <= (cWidth.toDouble - 45) && playerLives >= 0) {
-              player.moveRight()
-              player.img = Images.pRPic
-              if (playerLives == 2) {
+            if (coop == true) {
 
-                player.img = Images.Tesla1HR
+              if (playerOne.pos.x <= (cWidth.toDouble - 45) && playerLives >= 0 && player1Lives >= 0) {
+                playerOne.moveRight()
+                playerOne.img = Images.pRPic
+                if (player1Lives == 2) {
 
+                  playerOne.img = Images.Tesla1HR
+
+                }
+
+                if (player1Lives == 1) {
+
+                  playerOne.img = Images.Tesla2HR
+
+                }
+
+                if (player1Lives == 0) {
+
+                  playerOne.img = Images.Tesla3HR
+
+                }
+
+                bossEnemy.move(new Vec2(-6, 0))
               }
 
-              if (playerLives == 1) {
+            } else {
 
-                player.img = Images.Tesla2HR
+              if (player.pos.x <= (cWidth.toDouble - 45) && playerLives >= 0 && player1Lives >= 0) {
+                player.moveRight()
+                player.img = Images.pRPic
+                if (playerLives == 2) {
 
+                  player.img = Images.Tesla1HR
+
+                }
+
+                if (playerLives == 1) {
+
+                  player.img = Images.Tesla2HR
+
+                }
+
+                if (playerLives == 0) {
+
+                  player.img = Images.Tesla3HR
+
+                }
+
+                bossEnemy.move(new Vec2(-6, 0))
               }
-
-              if (playerLives == 0) {
-
-                player.img = Images.Tesla3HR
-
-              }
-
-              bossEnemy.move(new Vec2(-6, 0))
-
             }
           }
 
-          if (keyEvents("UP") == true && playerLives >= 0) {
-            if (player.pos.y >= 10) {
-              player.moveUp()
-              player.img = Images.pPic
+          if (keyEvents("UP") == true && playerLives >= 0 && player1Lives >= 0) {
+            if (coop == true) {
 
-              if (playerLives == 2) {
+              if (playerOne.pos.y >= 10) {
+                playerOne.moveUp()
+                playerOne.img = Images.pPic
 
-                player.img = Images.Tesla1H
+                if (player1Lives == 2) {
 
+                  playerOne.img = Images.Tesla1H
+
+                }
+
+                if (player1Lives == 1) {
+
+                  playerOne.img = Images.Tesla2H
+
+                }
+
+                if (player1Lives == 0) {
+
+                  playerOne.img = Images.Tesla3H
+
+                }
               }
 
-              if (playerLives == 1) {
+            } else {
 
-                player.img = Images.Tesla2H
+              if (player.pos.y >= 10) {
+                player.moveUp()
+                player.img = Images.pPic
 
+                if (playerLives == 2) {
+
+                  player.img = Images.Tesla1H
+
+                }
+
+                if (playerLives == 1) {
+
+                  player.img = Images.Tesla2H
+
+                }
+
+                if (playerLives == 0) {
+
+                  player.img = Images.Tesla3H
+
+                }
               }
-
-              if (playerLives == 0) {
-
-                player.img = Images.Tesla3H
-
-              }
-
             }
           }
 
-          if (keyEvents("DOWN") == true && playerLives >= 0) {
-            if (player.pos.y <= cHeight.toDouble - 165) {
-              player.moveDown()
-              player.img = Images.pPic
+          if (keyEvents("DOWN") == true && playerLives >= 0 && player1Lives >= 0) {
+            if (coop == true) {
 
-              if (playerLives == 2) {
+              if (playerOne.pos.y <= cHeight.toDouble - 165) {
+                playerOne.moveDown()
+                playerOne.img = Images.pPic
 
-                player.img = Images.Tesla1H
+                if (player1Lives == 2) {
 
+                  playerOne.img = Images.Tesla1H
+
+                }
+
+                if (player1Lives == 1) {
+
+                  playerOne.img = Images.Tesla2H
+
+                }
+
+                if (player1Lives == 0) {
+
+                  playerOne.img = Images.Tesla3H
+                }
               }
 
-              if (playerLives == 1) {
+            } else {
 
-                player.img = Images.Tesla2H
+              if (player.pos.y <= cHeight.toDouble - 165) {
+                player.moveDown()
+                player.img = Images.pPic
 
+                if (playerLives == 2) {
+
+                  player.img = Images.Tesla1H
+
+                }
+
+                if (playerLives == 1) {
+
+                  player.img = Images.Tesla2H
+
+                }
+
+                if (playerLives == 0) {
+
+                  player.img = Images.Tesla3H
+                }
               }
-
-              if (playerLives == 0) {
-
-                player.img = Images.Tesla3H
-              }
-
             }
           }
 
-          if (keyEvents("A") == true && playerLives >= 0) {
-            if (player.pos.x >= 10) {
-              player.moveLeft()
-              player.img = Images.pLPic
-              if (playerLives == 2) {
+          if (keyEvents("A") == true && playerLives >= 0 && player2Lives >= 0) {
+            if (coop == true) {
 
-                player.img = Images.Tesla1HL
+              if (playerTwo.pos.x >= 10) {
+                playerTwo.moveLeft()
+                playerTwo.img = Images.pLPic
+                if (player2Lives == 2) {
+
+                  playerTwo.img = Images.Tesla1HL
+
+                }
+
+                if (player2Lives == 1) {
+
+                  playerTwo.img = Images.Tesla2HL
+
+                }
+
+                if (player2Lives == 0) {
+
+                  playerTwo.img = Images.Tesla3HL
+
+                }
 
               }
 
-              if (playerLives == 1) {
+            } else {
 
-                player.img = Images.Tesla2HL
+              if (player.pos.x >= 10) {
+                player.moveLeft()
+                player.img = Images.pLPic
+                if (playerLives == 2) {
 
+                  player.img = Images.Tesla1HL
+
+                }
+
+                if (playerLives == 1) {
+
+                  player.img = Images.Tesla2HL
+
+                }
+
+                if (playerLives == 0) {
+
+                  player.img = Images.Tesla3HL
+
+                }
               }
-
-              if (playerLives == 0) {
-
-                player.img = Images.Tesla3HL
-
-              }
-
             }
           }
 
-          if (keyEvents("D") == true && playerLives >= 0) {
-            if (player.pos.x <= (cWidth.toDouble - 45)) {
-              player.moveRight()
-              player.img = Images.pRPic
-              if (playerLives == 2) {
+          if (keyEvents("D") == true && playerLives >= 0 && player2Lives >= 0) {
+            if (coop == true) {
 
-                player.img = Images.Tesla1HR
+              if (playerTwo.pos.x <= (cWidth.toDouble - 45)) {
+                playerTwo.moveRight()
+                playerTwo.img = Images.pRPic
+                if (player2Lives == 2) {
 
+                  playerTwo.img = Images.Tesla1HR
+
+                }
+
+                if (player2Lives == 1) {
+
+                  playerTwo.img = Images.Tesla2HR
+
+                }
+
+                if (player2Lives == 0) {
+
+                  playerTwo.img = Images.Tesla3HR
+
+                }
               }
 
-              if (playerLives == 1) {
+            } else {
 
-                player.img = Images.Tesla2HR
+              if (player.pos.x <= (cWidth.toDouble - 45)) {
+                player.moveRight()
+                player.img = Images.pRPic
+                if (playerLives == 2) {
 
+                  player.img = Images.Tesla1HR
+
+                }
+
+                if (playerLives == 1) {
+
+                  player.img = Images.Tesla2HR
+
+                }
+
+                if (playerLives == 0) {
+
+                  player.img = Images.Tesla3HR
+
+                }
               }
-
-              if (playerLives == 0) {
-
-                player.img = Images.Tesla3HR
-
-              }
-
             }
           }
 
-          if (keyEvents("W") == true && playerLives >= 0) {
-            if (player.pos.y >= 10) {
-              player.moveUp()
-              player.img = Images.pPic
-              if (playerLives == 2) {
+          if (keyEvents("W") == true && playerLives >= 0 && player2Lives >= 0) {
+            if (coop == true) {
+              if (playerTwo.pos.y >= 10) {
+                playerTwo.moveUp()
+                playerTwo.img = Images.pPic
+                if (player2Lives == 2) {
 
-                player.img = Images.Tesla1H
+                  playerTwo.img = Images.Tesla1H
 
+                }
+
+                if (player2Lives == 1) {
+
+                  playerTwo.img = Images.Tesla2H
+
+                }
+
+                if (player2Lives == 0) {
+
+                  playerTwo.img = Images.Tesla3H
+
+                }
               }
 
-              if (playerLives == 1) {
+            } else {
 
-                player.img = Images.Tesla2H
+              if (player.pos.y >= 10) {
+                player.moveUp()
+                player.img = Images.pPic
+                if (playerLives == 2) {
 
+                  player.img = Images.Tesla1H
+
+                }
+
+                if (playerLives == 1) {
+
+                  player.img = Images.Tesla2H
+
+                }
+
+                if (playerLives == 0) {
+
+                  player.img = Images.Tesla3H
+
+                }
               }
-
-              if (playerLives == 0) {
-
-                player.img = Images.Tesla3H
-
-              }
-
             }
           }
 
-          if (keyEvents("S") == true && playerLives >= 0) {
-            if (player.pos.y <= cHeight.toDouble - 165) {
-              player.moveDown()
-              player.img = Images.pPic
-              if (playerLives == 2) {
+          if (keyEvents("S") == true && playerLives >= 0 && player2Lives >= 0) {
+            if (coop == true) {
 
-                player.img = Images.Tesla1H
+              if (playerTwo.pos.y <= cHeight.toDouble - 165) {
+                playerTwo.moveDown()
+                playerTwo.img = Images.pPic
+                if (player2Lives == 2) {
 
+                  playerTwo.img = Images.Tesla1H
+
+                }
+
+                if (player2Lives == 1) {
+
+                  playerTwo.img = Images.Tesla2H
+
+                }
+
+                if (player2Lives == 0) {
+
+                  playerTwo.img = Images.Tesla3H
+
+                }
               }
 
-              if (playerLives == 1) {
+            } else {
 
-                player.img = Images.Tesla2H
+              if (player.pos.y <= cHeight.toDouble - 165) {
+                player.moveDown()
+                player.img = Images.pPic
+                if (playerLives == 2) {
 
+                  player.img = Images.Tesla1H
+
+                }
+
+                if (playerLives == 1) {
+
+                  player.img = Images.Tesla2H
+
+                }
+
+                if (playerLives == 0) {
+
+                  player.img = Images.Tesla3H
+
+                }
               }
-
-              if (playerLives == 0) {
-
-                player.img = Images.Tesla3H
-
-              }
-
             }
           }
 
           if (keyEvents("P") == true) {
 
+            showBoss = false
+            coop = false
             score = 0
+            energy = 0
             playerLives = 3
+            player1Lives = 3
+            player2Lives = 3
             enemySwarm.resetGrid()
+            enemiesInGrid = 24
             player.moveTo(new Vec2(center, cHeight - 165))
             player.img = Images.pPic
+            eBullets.clear()
+            pBullets.clear()
+
+          }
+
+          if (keyEvents("C") == true) {
+
+            showBoss = false
+            coop = true
+            score = 0
+            slow = false
+            energy = 0
+            playerLives = 3
+            player1Lives = 3
+            player2Lives = 3
+            enemySwarm.resetGrid()
+            enemiesInGrid = 24
+            playerOne.moveTo(new Vec2(center + 50, cHeight - 165))
+            playerTwo.moveTo(new Vec2(center - 50, cHeight - 165))
+            playerOne.img = Images.pPic
+            playerTwo.img = Images.pPic
             eBullets.clear()
             pBullets.clear()
 
@@ -433,6 +1032,8 @@ object SpaceGameApp extends JFXApp {
           if (t - prevTime > 1e9 / 2) {
 
             shootCount = 0
+            p1ShootCount = 0
+            p2ShootCount = 0
 
           }
 
@@ -440,7 +1041,7 @@ object SpaceGameApp extends JFXApp {
           if (t - prevTime > 1e9 / 2) {
 
             prevTime = t
-            enemySwarm.shoot()
+
             eBullets += enemySwarm.shoot()
 
           }
@@ -466,44 +1067,122 @@ object SpaceGameApp extends JFXApp {
                 if (enemy.intersection == true) {
 
                   pBullets -= bullet
+
+                  playExplosionAudio()
                   explosions += new Explosion(Images.explosionImage1, enemy.pos.clone(), true)
 
                   score += 1
+                  if (energy < 240) {
+                    energy += 10
+                  }
+                  enemiesInGrid -= 1
 
                   enemy.explode()
 
                 }
 
                 bossEnemy.intersects(bossW, bossH, bulletW, bulletH, bullet.pos)
-                
+
                 if (bossEnemy.intersection == true) {
 
                   pBullets -= bullet
                   score += 5
+                  if (energy < 240) {
+                    energy += 80
+                  }
                   bossLives -= 1
 
+                  playExplosionAudio()
+
                   explosions += new Explosion(Images.explosionImage1, bossEnemy.pos.clone(), true)
-                  
+
                   if (bossLives == 2) {
-                    
+
                     bossEnemy.img = Images.BossH1
-                    
+
                   } else if (bossLives == 1) {
-                    
+
                     bossEnemy.img = Images.BossH2
-                    
+
                   } else if (bossLives == 0) {
-                    
+
                     bossEnemy.img = Images.BossH3
-                    
+
                   }
-                  
+
                   if (bossLives < 0) {
 
                     showBoss = false
                     bossEnemy.moveTo(new Vec2(center, -200))
                     enemySwarm.resetGrid()
-                    
+                    enemiesInGrid = 24
+                    bossEnemy.img = Images.bossPic
+                    bossLives = 3
+
+                  }
+
+                }
+
+              }
+
+              //BFL Intersections
+
+              for (laser <- BFLBullets) {
+
+                bossEnemy.intersects(bossW, bossH, laserW, laserH, laser.pos)
+                enemy.intersects(enemyW, enemyH, laserW, laserH, laser.pos)
+
+                if (enemy.intersection == true) {
+
+                  playExplosionAudio()
+
+                  explosions += new Explosion(Images.explosionImage1, enemy.pos.clone(), true)
+
+                  score += 1
+                  if (energy < 240) {
+                    energy += 10
+                  }
+                  enemiesInGrid -= 1
+
+                  enemy.explode()
+
+                }
+
+                if (bossEnemy.intersection == true) {
+
+                  score += 5
+                  if (energy < 240) {
+                    energy += 80
+                  }
+                  bossLives -= 1
+
+                  playExplosionAudio()
+
+                  explosions += new Explosion(Images.explosionImage1, bossEnemy.pos.clone(), true)
+
+                  if (bossLives == 2) {
+
+                    bossEnemy.img = Images.BossH1
+
+                  } else if (bossLives == 1) {
+
+                    bossEnemy.img = Images.BossH2
+
+                  } else if (bossLives == 0) {
+
+                    bossEnemy.img = Images.BossH3
+
+                  }
+
+                  if (bossLives < 0) {
+
+                    showBoss = false
+                    bossEnemy.moveTo(new Vec2(center, -200))
+                    enemySwarm.resetGrid()
+                    enemiesInGrid = 24
+                    bossEnemy.img = Images.bossPic
+                    bossLives = 3
+
                   }
 
                 }
@@ -511,51 +1190,135 @@ object SpaceGameApp extends JFXApp {
               }
 
               // Player Intersections
-              player.intersects(playerW, playerH, enemyW, enemyH, enemy.pos)
+              if (coop == true) {
 
-              if (player.intersection == true && playerLives >= 0) {
+                playerOne.intersects(playerW, playerH, enemyW, enemyH, enemy.pos)
 
-                explosions += new Explosion(Images.explosionImage1, player.pos.clone(), true)
-                playerLives -= 1
+                if (playerOne.intersection == true && player1Lives >= 0) {
 
-                player.moveTo(new Vec2(center, cHeight - 165))
-                if (playerLives <= 0) {
+                  playExplosionAudio()
 
-                  player.img = Images.explosionImage1
+                  explosions += new Explosion(Images.explosionImage1, playerOne.pos.clone(), true)
+                  player1Lives -= 1
 
+                  playerOne.moveTo(new Vec2(center, cHeight - 165))
+                  if (player1Lives <= 0) {
+
+                    playerOne.img = Images.explosionImage1
+
+                  }
                 }
 
+                playerTwo.intersects(player2W, player2H, enemyW, enemyH, enemy.pos)
+
+                if (playerTwo.intersection == true && player2Lives >= 0) {
+
+                  playExplosionAudio()
+
+                  explosions += new Explosion(Images.explosionImage1, playerTwo.pos.clone(), true)
+                  player2Lives -= 1
+
+                  playerTwo.moveTo(new Vec2(center, cHeight - 165))
+                  if (player2Lives <= 0) {
+
+                    playerTwo.img = Images.explosionImage1
+
+                  }
+                }
+
+              } else {
+
+                player.intersects(playerW, playerH, enemyW, enemyH, enemy.pos)
+
+                if (player.intersection == true && playerLives >= 0) {
+
+                  playExplosionAudio()
+
+                  explosions += new Explosion(Images.explosionImage1, player.pos.clone(), true)
+                  playerLives -= 1
+
+                  player.moveTo(new Vec2(center, cHeight - 165))
+                  if (playerLives <= 0) {
+
+                    player.img = Images.explosionImage1
+
+                  }
+                }
               }
             }
           }
 
           for (bullet <- eBullets) {
 
-            bullet.timeStep()
-            player.intersects(playerW, playerH, bulletW, bulletH, bullet.pos)
+            if (coop == true) {
 
-            if (bullet.pos.y >= cHeight) {
+              bullet.timeStep()
+              playerOne.intersects(playerW, playerH, bulletW, bulletH, bullet.pos)
+              playerTwo.intersects(player2W, player2H, bulletW, bulletH, bullet.pos)
 
-              eBullets -= bullet
+              if (bullet.pos.y >= cHeight) {
 
-            }
+                eBullets -= bullet
 
-            if (player.intersection == true) {
+              }
 
-              explosions += new Explosion(Images.explosionImage1, player.pos.clone(), true)
+              if (playerOne.intersection == true) {
 
-              player.moveTo(new Vec2(center, cHeight - 165))
+                playExplosionAudio()
 
-              eBullets -= bullet
+                explosions += new Explosion(Images.explosionImage1, playerOne.pos.clone(), true)
 
-              playerLives -= 1
-              println("playerLives:" + playerLives)
+                playerOne.moveTo(new Vec2(center, cHeight - 165))
 
+                eBullets -= bullet
+
+                player1Lives -= 1
+                println("playerLives:" + player1Lives)
+
+              }
+
+              if (playerTwo.intersection == true) {
+
+                playExplosionAudio()
+
+                explosions += new Explosion(Images.explosionImage1, playerTwo.pos.clone(), true)
+
+                playerTwo.moveTo(new Vec2(center, cHeight - 165))
+
+                eBullets -= bullet
+
+                player2Lives -= 1
+                println("playerLives:" + player2Lives)
+
+              }
+
+            } else {
+
+              bullet.timeStep()
+              player.intersects(playerW, playerH, bulletW, bulletH, bullet.pos)
+
+              if (bullet.pos.y >= cHeight) {
+
+                eBullets -= bullet
+
+              }
+
+              if (player.intersection == true) {
+
+                playExplosionAudio()
+
+                explosions += new Explosion(Images.explosionImage1, player.pos.clone(), true)
+
+                player.moveTo(new Vec2(center, cHeight - 165))
+
+                eBullets -= bullet
+
+                playerLives -= 1
+                println("playerLives:" + playerLives)
+
+              }
             }
           }
-          
-          //Boss Intersections 
-          
 
           //Bullet Intersections
 
@@ -583,8 +1346,24 @@ object SpaceGameApp extends JFXApp {
 
           }
 
+          //Enemy Speed
+
+          if (speedCounter != 0) {
+
+            speedCounter -= 1
+            slow = true
+            enemySwarm.beDynamic(slow)
+            println(slow)
+
+          } else if (speedCounter <= 10) {
+            slow = false
+            enemySwarm.beDynamic(slow)
+            speedCounter = 0
+            println(slow)
+
+          }
+
           constellation.beDynamic()
-          enemySwarm.beDynamic()
 
           if (t - prevTime > 1e9 / 600) {
 
@@ -602,6 +1381,12 @@ object SpaceGameApp extends JFXApp {
 
         }
 
+        for (BFL <- BFLBullets) {
+
+          BFL.display(gc, laserW, laserH)
+
+        }
+
         for (bullet <- eBullets) {
 
           bullet.display(gc, bulletW, bulletH)
@@ -614,13 +1399,36 @@ object SpaceGameApp extends JFXApp {
 
         }
 
-        if (playerLives <= -1) {
+        for (power <- powerUps) {
+
+          power.display(gc, 30, 30)
+
+        }
+
+        if (playerLives <= -1 || (player1Lives <= -1 && player2Lives <= -1)) {
           //Game Over
 
+          if (coop == true) {
+
+            player1Lives = -1
+            player2Lives = -1
+
+          } else {
+
+            playerLives = -1
+
+          }
+
+          energy = 0
           score = 0
-          playerLives = -1
+          slow = false
+          speedCounter = 0
           running = false
+          coop = false
           endCount += 1
+          showBoss = false
+          bossEnemy.moveTo(new Vec2(center, -200))
+
           if (endCount > 30) {
             displayEnd()
           }
@@ -631,12 +1439,15 @@ object SpaceGameApp extends JFXApp {
 
       def restorePreviousState() {
 
+        playReverseAudio()
+
         var lastState = gameStates.pop()
 
         player = lastState.playerState
+        playerOne = lastState.playerOneState
+        playerTwo = lastState.playerTwoState
         bossEnemy = lastState.bossState
         startGame = lastState.runState
-        playerLives = lastState.playerLivesState
 
         //Stars
         constellation = lastState.stars
@@ -646,13 +1457,19 @@ object SpaceGameApp extends JFXApp {
 
         eBullets = lastState.enemyBullets
         pBullets = lastState.playerBullets
+        BFLBullets = lastState.BFLBullets
         explosions = lastState.explosions
+        powerUps = lastState.powerUps
 
         score = lastState.scoreState
+        energy = lastState.energyState
         running = lastState.runState
         startGame = lastState.startState
         playerLives = lastState.playerLivesState
+        player1Lives = lastState.player1LivesState
+        player2Lives = lastState.player2LivesState
         bossLives = lastState.bossLivesState
+        slow = lastState.speedState
 
       }
 
@@ -662,6 +1479,12 @@ object SpaceGameApp extends JFXApp {
         for (x <- 0 to pBulletC.length - 1) {
 
           pBulletC(x) = pBullets(x).clone()
+
+        }
+        var BFLBulletC = BFLBullets.clone()
+        for (x <- 0 to BFLBulletC.length - 1) {
+
+          BFLBulletC(x) = BFLBullets(x).clone()
 
         }
         var eBulletC = eBullets.clone()
@@ -677,7 +1500,14 @@ object SpaceGameApp extends JFXApp {
 
         }
 
-        var currentState = new GameState(startGame, running, score, playerLives, bossLives, player.clone(), bossEnemy.clone(), enemySwarm.clone(), pBulletC, eBulletC, constellation.clone(), explosionC)
+        var powerUpC = powerUps.clone()
+        for (x <- 0 to powerUpC.length - 1) {
+
+          powerUpC(x) = powerUps(x).clone()
+
+        }
+
+        var currentState = new GameState(startGame, running, score, energy, slow, playerLives, player1Lives, player2Lives, bossLives, player.clone(), playerOne.clone(), playerTwo.clone(), bossEnemy.clone(), enemySwarm.clone(), pBulletC, BFLBulletC, eBulletC, constellation.clone(), explosionC, powerUpC)
         gameStates.push(currentState)
 
       }
@@ -687,42 +1517,113 @@ object SpaceGameApp extends JFXApp {
         gc.fill = Color.Black
         gc.fillRect(0, 0, 1000, 900)
         constellation.display(gc)
-        player.display(gc, playerW, playerH)
         bossEnemy.display(gc, bossW, bossH)
         enemySwarm.display(gc)
+        battery.display(gc, 100, 80)
         gc.fill = Color.White
-        gc.font = scalafx.scene.text.Font.font(50.0)
-        gc.fillText("Lives: " + playerLives, 20, 60)
-        gc.fillText("Score: " + score, 20, 110)
+        gc.font = scalafx.scene.text.Font.font(30.0)
+
+        if (coop == true) {
+
+          playerOne.display(gc, playerW, playerH)
+          playerTwo.display(gc, player2W, player2H)
+          gc.fillText("P1 Lives: " + player1Lives, 20, 60)
+          gc.fillText("P2 Lives: " + player2Lives, 20, 110)
+          gc.fillText("Score: " + score, 20, 160)
+
+        } else {
+
+          player.display(gc, playerW, playerH)
+          gc.fillText("Lives: " + playerLives, 20, 60)
+          gc.fillText("Score: " + score, 20, 110)
+
+        }
 
       }
 
       def displayStart() {
 
         endCount = 0
-        gc.fill = Color.Black
         gc.fillRect(0, 0, 1000, 900)
-        gc.fill = Color.Green
+        gc.drawImage(new Image("file:Mars-Sunrise.png"), 0, 0, 1000, 900)
+        gc.fill = Color.LimeGreen
         gc.font = scalafx.scene.text.Font.font(50.0)
         gc.fillText("SpaceX Tesla Roadster VS The Martians", 20, 400)
         gc.font = scalafx.scene.text.Font.font(40.0)
         gc.fillText("Press the 'P' Key to Play!", 260, 450)
-        gc.fillText("Press the 'Q' Key to Quit", 220, 500)
+        gc.fillText("Press the 'C' Key for Co-Op", 240, 550)
+        gc.fillText("Press the 'Q' Key to Quit", 260, 500)
 
       }
 
       def displayEnd() {
-
-        gc.fill = Color.Black
+        timer.stop()
         gc.fillRect(0, 0, 1000, 900)
+        gc.drawImage(new Image("file:Mars-Sunrise.png"), 0, 0, 1000, 900)
         gc.fill = Color.Red
         gc.font = scalafx.scene.text.Font.font(60.0)
         gc.fillText("Game Over", 340, 400)
         gc.font = scalafx.scene.text.Font.font(40.0)
         gc.fillText("Press the 'P' Key to Play Again!", 220, 450)
-        gc.fillText("Press the 'Q' Key to Quit", 220, 500)
+        gc.fillText("Press the 'C' Key for Co-Op", 240, 550)
+        gc.fillText("Press the 'Q' Key to Quit", 260, 500)
 
       }
+
+      def playLaserAudio() {
+
+        var audioFile = "Laser-SoundBible.com-602495617.wav"
+        var sound = new Media(new File(audioFile).toURI().toString());
+        var mediaPlayer = new MediaPlayer(sound);
+        mediaPlayer.play();
+
+      }
+
+      def playAlienLaserAudio() {
+
+        var audioFile = "Flash-laser-03.wav"
+        var sound = new Media(new File(audioFile).toURI().toString());
+        var mediaPlayer = new MediaPlayer(sound);
+        mediaPlayer.play();
+
+      }
+
+      def playBFLAudio() {
+
+        var audioFile = "Laser-effector-02.wav"
+        var sound = new Media(new File(audioFile).toURI().toString());
+        var mediaPlayer = new MediaPlayer(sound);
+        mediaPlayer.play();
+
+      }
+
+      def playExplosionAudio() {
+
+        var audioFile = "Explosion+1.wav"
+        var sound = new Media(new File(audioFile).toURI().toString());
+        var mediaPlayer = new MediaPlayer(sound);
+        mediaPlayer.play();
+
+      }
+
+      def playPowerUpAudio() {
+
+        var audioFile = "Power-Up-KP-1879176533.wav"
+        var sound = new Media(new File(audioFile).toURI().toString());
+        var mediaPlayer = new MediaPlayer(sound);
+        mediaPlayer.play();
+
+      }
+
+      def playReverseAudio() {
+
+        var audioFile = "Time Travel Clip-SoundBible.com-397408270.wav"
+        var sound = new Media(new File(audioFile).toURI().toString());
+        var mediaPlayer = new MediaPlayer(sound);
+        mediaPlayer.play();
+
+      }
+
     }
   }
 }

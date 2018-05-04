@@ -6,6 +6,9 @@ import scalafx.scene.input.KeyEvent
 import scalafx.scene.input.KeyCode
 import cs2.util.Vec2
 import scalafx.scene.canvas.GraphicsContext
+import javafx.scene.media.Media
+import javafx.scene.media.MediaPlayer
+import java.io.File
 
 /**
  * contains the control and logic to present a coordinated set of Enemy objects.
@@ -68,13 +71,22 @@ class EnemySwarm(private val nRows: Int, private val nCols: Int) extends ShootsB
     }
   }
 
-  def beDynamic() {
+  def beDynamic(speed: Boolean) {
 
     for (x <- 0 until nRows) {
       for (y <- 0 until nCols) {
 
-        var enemy = grid(x)(y)
-        enemy.beDynamic()
+        if (speed == true) {
+
+          var enemy = grid(x)(y)
+          enemy.beDynamic(true)
+
+        } else if (speed == false) {
+
+          var enemy = grid(x)(y)
+          enemy.beDynamic(false)
+
+        }
 
       }
     }
@@ -92,7 +104,26 @@ class EnemySwarm(private val nRows: Int, private val nCols: Int) extends ShootsB
     var rCol = ((nCols) * (math.random())).toInt
 
     var enemy = grid(rRow)(rCol)
+
+    if (enemy.pos.x > 0) {
+
+      playAlienLaserAudio()
+
+    }
+
     enemy.shoot()
+
+  }
+
+  def dropPower(): PowerUp = {
+
+    var rRow = ((nRows) * (math.random())).toInt
+    var rCol = ((nCols) * (math.random())).toInt
+    var typ = (3 * math.random()).toInt
+
+    var enemy = grid(rRow)(rCol)
+
+    enemy.dropPower(typ)
 
   }
 
@@ -107,6 +138,15 @@ class EnemySwarm(private val nRows: Int, private val nCols: Int) extends ShootsB
       }
     }
     swarm
+
+  }
+
+  def playAlienLaserAudio() {
+
+    var audioFile = "Flash-laser-03.wav"
+    var sound = new Media(new File(audioFile).toURI().toString());
+    var mediaPlayer = new MediaPlayer(sound);
+    mediaPlayer.play();
 
   }
 

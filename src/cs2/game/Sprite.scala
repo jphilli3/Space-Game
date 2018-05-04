@@ -19,6 +19,7 @@ abstract class Sprite (var img:Image, var pos:Vec2) {
    */
   
   var intersection: Boolean = false
+  var powerIntersection: Boolean = false
   
  
   def move (direction:Vec2) { 
@@ -50,5 +51,13 @@ abstract class Sprite (var img:Image, var pos:Vec2) {
       intersection = false
     }
   }
+  
+    def intersectsPower (widthA:Int, heightA: Int, widthB:Int, heightB:Int, location: Vec2) {
+    if (!((this.pos.x+widthA < location.x) || (this.pos.x > location.x+widthB)) && !((this.pos.y+heightA < location.y) || (this.pos.y > location.y+heightB))) {
+       powerIntersection = true
+    } else {
+      powerIntersection = false
+    }
+    }
   
 }

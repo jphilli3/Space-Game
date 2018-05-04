@@ -19,8 +19,12 @@ object Enemy {
   val explosionImage2 = new Image("file:CSExplosion2.png")
   val explosionImage3 = new Image("file:CSExplosion3.png")
   val explosionImage4 = new Image("file:CSExplosion4.png")
-  
+
   val greenLaser = new Image("file:CS2GreenLaser.png")
+
+  val maxEnergy = new Image("file:CS2Energy.png")
+  val addLife = new Image("file:CS2Life.png")
+  val slow = new Image("file:CS2Freeze.png")
 
 }
 
@@ -42,17 +46,25 @@ class Enemy(pic: Image, initPos: Vec2, private val bulletPic: Image)
 
   val explosionArray = Array(Enemy.explosionImage1, Enemy.explosionImage2, Enemy.explosionImage3, Enemy.explosionImage4)
 
-  def beDynamic() {
+  def beDynamic(slow: Boolean) {
 
     counter += 1
     theta += math.Pi / 32
 
-    if (counter > 100) {
+    if (counter > 80 && slow == false) {
 
       deltaX = -deltaX
       counter = 0
 
     }
+    
+    if (counter > 80 && slow == true) {
+
+      deltaX = 0
+      counter = 0
+
+    }
+
 
     direction = new Vec2(deltaX, math.cos(theta))
     move(direction)
@@ -75,7 +87,36 @@ class Enemy(pic: Image, initPos: Vec2, private val bulletPic: Image)
     var position = new Vec2(pos.x, pos.y)
 
     new Explosion(pic, position, true)
-    pos = new Vec2(-100, -100)
+    pos = new Vec2(-10000, 0)
+
+  }
+
+  def dropPower(kind: Int): PowerUp = {
+
+    var pic = Enemy.maxEnergy
+    var position = new Vec2(pos.x, pos.y)
+    val vel = new Vec2(0, 2)
+
+    if (kind == 0) {
+
+      pic = Enemy.maxEnergy
+
+    }
+
+    if (kind == 1) {
+
+      pic = Enemy.addLife
+
+    }
+
+    if (kind == 2) {
+
+      pic = Enemy.slow
+
+    }
+
+    var pw = new PowerUp(pic, position, kind, vel)
+    pw
 
   }
 
